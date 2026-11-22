@@ -1,0 +1,434 @@
+# ---- helpers shared by the writers -------------------------------------------
+
+# one model (string or H-representation) as H-representation
+# puts the probabilities (columns 3 onwards) of an H-representation into the order `perm`
+# (perm[j] = the old column that becomes the j-th probability); NULL keeps the order
+reorder_h_columns <- function(h, perm) {
+  if (is.null(perm)) return(h)
+  n_p <- ncol(h) - 2L
+  perm <- as.integer(perm)
+  if (length(perm) != n_p || !setequal(perm, seq_len(n_p)))
+    stop("'order' must be a permutation of 1..", n_p, " (one entry per probability).", call. = FALSE)
+  h[, c(1L, 2L, 2L + perm), drop = FALSE]
+}
+
+export_h_of <- function(m, n_p, approx_tol, reduce) {
+  if (is.character(m) && !is.matrix(m)) {
+    if (is.null(n_p)) stop("'n_p' is needed for model strings.")
+    fairy_h(m, n_p = n_p, approx_tol = approx_tol, reduce = reduce)
+  } else as_h(m)
+}
+
+# Eliminates every equality of an H-representation by substitution (solves it for one probability and
+# substitutes it into the other rows), leaving a pure inequality system. Returns the reduced inequality
+# matrix, the original column index of each remaining probability, how each eliminated probability is
+# recovered, and whether the equalities contradict each other.
+eliminate_h_equalities <- function(h_mat) {
+  h_num <- q2d(h_mat)
+  n_p   <- ncol(h_num) - 2L
+  is_eq <- h_num[, 1] == 1
+  eq_pool   <- h_num[is_eq, , drop = FALSE]
+  ineq_rows <- h_num[!is_eq, , drop = FALSE]
+  remaining_idx <- seq_len(n_p)
+  elim_raw <- list(); elim_order <- character(); infeasible <- FALSE
+
+  # drops column `pivot_pos` after subtracting the multiple of `eq_row` that zeroes it; the type flag
+  # (column 1) is copied from the row itself and not part of the linear system
+  reduce_matrix <- function(M, pivot_pos, a_piv, eq_row) {
+    if (nrow(M) == 0) return(M[, -(2L + pivot_pos), drop = FALSE])
+    out <- matrix(0, nrow = nrow(M), ncol = ncol(M) - 1L)
+    for (r in seq_len(nrow(M))) {
+      k <- M[r, 2L + pivot_pos]
+      new_row <- if (abs(k) < 1e-12) M[r, ] else M[r, ] - (k / a_piv) * eq_row
+      new_row[1] <- M[r, 1]
+      out[r, ] <- new_row[-(2L + pivot_pos)]
+    }
+    out
+  }
+
+  while (nrow(eq_pool) > 0 && length(remaining_idx) > 0) {
+    row <- eq_pool[1, ]
+    eq_pool <- eq_pool[-1, , drop = FALSE]
+    coefs <- row[3L:(2L + length(remaining_idx))]
+    pivot_pos <- which(abs(coefs) > 1e-9)[1]
+    if (is.na(pivot_pos)) {
+      if (abs(row[2]) > 1e-9) { infeasible <- TRUE; break }   # 0 = nonzero
+      next                                                    # 0 = 0: already implied
+    }
+    pivot_orig <- remaining_idx[pivot_pos]
+    a_piv <- coefs[pivot_pos]
+    other_pos <- setdiff(seq_along(remaining_idx), pivot_pos)
+    elim_raw[[as.character(pivot_orig)]] <- list(
+      const = -row[2] / a_piv,
+      idx   = remaining_idx[other_pos],
+      coefs = if (length(other_pos) > 0) -coefs[other_pos] / a_piv else numeric(0))
+    elim_order <- c(elim_order, as.character(pivot_orig))
+    eq_pool   <- reduce_matrix(eq_pool,   pivot_pos, a_piv, row)
+    ineq_rows <- reduce_matrix(ineq_rows, pivot_pos, a_piv, row)
+    remaining_idx <- remaining_idx[-pivot_pos]
+  }
+
+  # resolve each formula down to the surviving probabilities (backward pass)
+  resolved <- list()
+  for (ki in rev(seq_along(elim_order))) {
+    key <- elim_order[ki]; e <- elim_raw[[key]]
+    const <- e$const; new_idx <- numeric(0); new_coefs <- numeric(0)
+    for (ii in seq_along(e$idx)) {
+      dep_key <- as.character(e$idx[ii])
+      if (dep_key %in% names(resolved)) {
+        dep <- resolved[[dep_key]]
+        const <- const + e$coefs[ii] * dep$const
+        new_idx <- c(new_idx, dep$idx); new_coefs <- c(new_coefs, e$coefs[ii] * dep$coefs)
+      } else { new_idx <- c(new_idx, e$idx[ii]); new_coefs <- c(new_coefs, e$coefs[ii]) }
+    }
+    if (length(new_idx) > 0) {
+      u <- unique(new_idx)
+      new_coefs <- vapply(u, function(ui) sum(new_coefs[new_idx == ui]), numeric(1)); new_idx <- u
+    }
+    resolved[[key]] <- list(const = const, idx = new_idx, coefs = new_coefs)
+  }
+  list(ineq = ineq_rows, remaining_idx = remaining_idx, eliminated = resolved, infeasible = infeasible)
+}
+
+# text of a QTEST H-representation file (integer-scaled A and b) for a numeric inequality matrix
+format_qtest_ineq_file <- function(ineq_mat, n_p) {
+  a_frac <- fractions(-ineq_mat[, 3L:(2L + n_p), drop = FALSE])
+  b_frac <- fractions(ineq_mat[, 2])
+  .nom   <- function(x) { n <- sub("/.*", "", as.character(x)); as.numeric(ifelse(grepl("/", as.character(x)), n, as.character(x))) }
+  .denom <- function(x) { d <- sub(".*/", "", as.character(x)); as.numeric(ifelse(grepl("/", as.character(x)), d, "1")) }
+  all_denoms <- c(.denom(a_frac), .denom(b_frac))
+  scale <- prod(unique(all_denoms[all_denoms != 0]))
+  a_scaled <- format(a_frac * scale, scientific = FALSE)
+  b_scaled <- format(b_frac * scale, scientific = FALSE)
+  paste(paste(nrow(ineq_mat), n_p), "\n\n",
+        paste(apply(a_scaled, 1, paste, collapse = " "), collapse = "\n"), "\n\n",
+        paste(b_scaled, collapse = "\n"), sep = "")
+}
+
+# note that ships next to a QTEST file whose equalities were eliminated
+format_qtest_substitution_note <- function(elim, orig_names) {
+  lines <- c("This model included equalities. QTEST's H-representation format",
+             "has no way to express \"=\", so one parameter was eliminated per",
+             "independent equality (solved for and substituted out) instead --",
+             "the accompanying .txt file is the resulting pure-inequality",
+             "system in the parameters listed below as \"kept\".", "")
+  kept_names <- orig_names[elim$remaining_idx]
+  lines <- c(lines, "Kept parameters (in the order they appear in the QTEST file):",
+             paste0("  ", seq_along(kept_names), ": ", kept_names), "")
+  if (length(elim$eliminated) > 0) {
+    lines <- c(lines, "Eliminated parameters (recover after solving the reduced system):")
+    for (key in names(elim$eliminated)) {
+      e <- elim$eliminated[[key]]
+      terms <- character(0)
+      for (ii in order(match(e$idx, elim$remaining_idx))) {
+        c_i <- e$coefs[ii]
+        if (abs(c_i) < 1e-9) next
+        coef_txt <- if (abs(abs(c_i) - 1) < 1e-9) "" else paste0(format(round(abs(c_i), 6)), "*")
+        terms <- c(terms, paste(if (c_i >= 0) "+" else "-", paste0(coef_txt, orig_names[e$idx[ii]])))
+      }
+      lines <- c(lines, paste0("  ", orig_names[as.integer(key)], " = ", paste(c(format(round(e$const, 6)), terms), collapse = " ")))
+    }
+  }
+  paste(lines, collapse = "\n")
+}
+
+# file name from a model name: every run of odd characters becomes one underscore
+safe_file_name <- function(x) {
+  x <- gsub("[^A-Za-z0-9_.-]+", "_", x)
+  x <- gsub("_{2,}", "_", x)
+  x <- gsub("^_+|_+$", "", x)
+  ifelse(nzchar(x), x, "model")
+}
+
+#' Write QTEST input files for one or more models
+#'
+#' Generates the plain-text input files expected by QTEST (Regenwetter &
+#' Davis-Stober, 2012), H-representation. Each model produces one `.txt` file
+#' with the integer-scaled A matrix and b vector. QTEST cannot express
+#' equalities: for a model with equalities the file lists the inequalities
+#' first and then the equalities in an extra block ("Equalities"), followed by
+#' a note that the file has to be edited for QTEST (or that the V-representation
+#' can be used instead), and its name ends with `_needs_editing_for_qtest`.
+#' Nothing is substituted or eliminated. All files are bundled in a single `.tar`
+#' archive.
+#'
+#' @param models A (named) character vector or list. Each element is a model
+#'   string, as accepted by [fairy()], or an H-representation (for example from
+#'   [fairy_intersect()], [fairy_mixture()] or [fairy_unpack()]).
+#' @param n_p Integer. Number of probabilities; only needed for model strings.
+#' @param file Path for the output `.tar` file. Defaults to
+#'   `"QTEST_H-representation_YYYY-MM-DD.tar"` in the current directory.
+#' @param approx_tol Numeric. Tolerance for approximate equalities (model strings only): one number for all, or one per equality. Default `0`.
+#' @param reduce Logical. Remove redundant H-rep rows (model strings only). Default `TRUE`.
+#' @param order Optional named list: for a model (by name) the order of its probabilities in the
+#'   file. `order[["m1"]] = c(3, 1, 2)` makes the third probability of the model the first one in
+#'   the QTEST file, the first one the second, and so on. Models that are not listed keep their own
+#'   order. Useful when QTEST expects the probabilities in a different order than they have here.
+#'
+#' @return Invisibly returns the path to the `.tar` file.
+#'
+#' @examples
+#' \dontrun{
+#' fairy_write_qtest(
+#'   c(H1 = "p1 > p2 > p3", H2 = "p1 > p2"),
+#'   n_p = 3,
+#'   file = "qtest_output.tar"
+#' )
+#' # the third probability first
+#' fairy_write_qtest(c(H1 = "p1 > p2 > p3"), n_p = 3, order = list(H1 = c(3, 1, 2)))
+#' }
+#'
+#' @importFrom MASS fractions
+#' @importFrom rcdd q2d d2q
+#' @importFrom utils tar write.table
+#' @export
+fairy_write_qtest <- function(models, n_p = NULL, file = NULL, approx_tol = 0, reduce = TRUE, order = NULL) {
+  if (is.null(file)) file <- paste0("QTEST_H-representation_", Sys.Date(), ".tar")
+  if (!grepl("^/|^~", file)) file <- file.path(getwd(), file)
+  file <- path.expand(file)
+  if (is.null(names(models))) names(models) <- paste0("M", seq_along(models))
+
+  owd <- setwd(tempdir())
+  on.exit(setwd(owd))
+  files <- character()
+  put <- function(txt, name) { write.table(txt, name, quote = FALSE, col.names = FALSE, row.names = FALSE); files <<- c(files, name) }
+
+  for (nm in names(models)) {
+    h <- export_h_of(models[[nm]], n_p, approx_tol, reduce)
+    h <- reorder_h_columns(h, order[[nm]])
+    h_num <- q2d(h)
+    safe_nm <- safe_file_name(nm)
+    orig_names <- colnames(h)[3:ncol(h)]
+    n_h <- ncol(h) - 2L
+    ineq <- h_num[h_num[, 1] == 0, , drop = FALSE]
+    eq   <- h_num[h_num[, 1] == 1, , drop = FALSE]
+    if (nrow(eq) > 0) {
+      # QTEST has no way to write an equality: the file keeps the inequalities, lists the equalities in their own block
+      # and says that it has to be edited
+      txt <- paste0(
+        if (nrow(ineq) > 0) format_qtest_ineq_file(ineq, n_h) else paste0("0 ", n_h, "\n\n"),
+        "\n\nEqualities\n\n", format_qtest_ineq_file(eq, n_h),
+        "\n\nNeeds to be edited here; if you do not know how to edit the file, download the V-representation of the model and let QTEST create the H-representation")
+      put(txt, paste0(safe_nm, "_needs_editing_for_qtest.txt"))
+    } else {
+      if (nrow(ineq) == 0) next
+      put(format_qtest_ineq_file(ineq, n_h), paste0(safe_nm, ".txt"))
+    }
+  }
+
+  tar(file, files)
+  invisible(file)
+}
+
+
+# Equalities p_i = p_j between two probabilities: returns which probabilities
+# are merged (`map`, one entry per probability: the number of its free
+# parameter), the rows to keep (all but those equalities) and the groups; NULL
+# when there is nothing to merge or nothing else would be left.
+reduce_equal_probs <- function(h_num) {
+  n_p <- ncol(h_num) - 2L
+  parent <- seq_len(n_p)
+  find <- function(i) { while (parent[i] != i) i <- parent[i]; i }
+  simple <- rep(FALSE, nrow(h_num))
+  for (r in which(h_num[, 1] == 1)) {
+    cf <- h_num[r, -(1:2)]
+    nz <- which(abs(cf) > 1e-12)
+    if (length(nz) == 2 && abs(h_num[r, 2]) < 1e-12 && abs(cf[nz[1]] + cf[nz[2]]) < 1e-12) {
+      simple[r] <- TRUE
+      a <- find(nz[1]); b <- find(nz[2])
+      if (a != b) parent[max(a, b)] <- min(a, b)
+    }
+  }
+  if (!any(simple) || all(simple)) return(NULL)
+  root <- vapply(seq_len(n_p), find, integer(1))
+  groups <- sort(unique(root))
+  list(map = match(root, groups), groups = groups, keep = !simple)
+}
+
+#' Write multinomineq input files for one or more models
+#'
+#' Generates the A matrix and b vector CSV files expected by the
+#' `multinomineq` R package (Heck & Davis-Stober, 2019). Each model
+#' produces two files: `A_<name>.csv` and `b_<name>.csv` (plus `map_<name>.csv`
+#' when it contains equal probabilities). All files
+#' are bundled in a single `.tar` archive.
+#'
+#' The A matrix satisfies `A %*% p <= b` and is derived directly from
+#' the H-representation. An equality between two probabilities (`p1 = p2`)
+#' merges them into one column; an extra file `map_<name>.csv` says which
+#' probabilities are equal (the `map` argument of the multinomineq functions),
+#' exactly as the app does it. Any other equality is written as two
+#' inequalities (both directions); such a model has volume zero.
+#'
+#' @inheritParams fairy_write_qtest
+#' @param file Path for the output `.tar` file. Defaults to
+#'   `"multinomineq_H-representation_YYYY-MM-DD.tar"` in the current directory.
+#' @param data Your data for the analysis: `NULL` (example numbers that you overwrite), one data frame with the columns
+#'   `probability`, `n` (number of observations) and `frequency` (how often the outcome was observed, out of `n`) with one row
+#'   per probability, or a list of such data frames. A list named by model gives that model its own file
+#'   (`data_model_<name>.csv`; for unpacked models, whose probabilities mean something of their own); unnamed data frames are
+#'   matched to the models by their number of rows. The numbers belong to the probability name, so they stay with it when
+#'   `order` changes.
+#' @param settings A list of the arguments of [fairy_multinomineq_script()] (`posterior_samples`, `bf_samples`, `burnin_post`,
+#'   `burnin_bf`, `prior`, `seed`) that are written into the analysis script.
+#' @param analysis `TRUE` (default) adds the data files and `analysis_multinomineq.R` to the archive, as the app does: run the
+#'   script in the folder with the files and you get `results.csv`, `posterior.csv` and `results.html`. `FALSE` writes only the
+#'   model files (A, b, map).
+#'
+#' @return Invisibly returns the path to the `.tar` file.
+#'
+#' @examples
+#' \dontrun{
+#' fairy_write_multinomineq(
+#'   c(H1 = "p1 > p2 > p3", H2 = "p1 > p2"),
+#'   n_p = 3,
+#'   file = "multinomineq_output.tar"
+#' )
+#' }
+#'
+#' @importFrom rcdd q2d d2q
+#' @importFrom utils tar write.table
+#' @export
+fairy_write_multinomineq <- function(models, n_p = NULL, file = NULL, approx_tol = 0, reduce = TRUE, order = NULL,
+                                     data = NULL, settings = list(), analysis = TRUE) {
+  if (is.null(file)) file <- paste0("multinomineq_H-representation_", Sys.Date(), ".tar")
+  if (!grepl("^/|^~", file)) file <- file.path(getwd(), file)
+  file <- path.expand(file)
+  d <- tempfile("fairy_mn_"); dir.create(d)
+  on.exit(unlink(d, recursive = TRUE), add = TRUE)
+  files <- mn_write_files(models, n_p, d, approx_tol, reduce, order, data, settings, analysis)
+  owd <- setwd(d); on.exit(setwd(owd), add = TRUE)
+  tar(file, files)
+  invisible(file)
+}
+
+# writes the files of the multinomineq archive into the folder `dir`; returns the file names
+# Rows 0 <= p_j <= 1 of every probability (character rcdd matrix with the column names `cn`)
+mn_bound_rows <- function(k, cn) {
+  m <- matrix("0", nrow = 2 * k, ncol = k + 2)
+  for (j in seq_len(k)) { m[j, 2 + j] <- "1"; m[k + j, 2] <- "1"; m[k + j, 2 + j] <- "-1" }
+  colnames(m) <- cn
+  m
+}
+
+# Does an H-representation (character rcdd matrix, after the equalities p_i = p_j are merged) have volume? NULL = yes,
+# otherwise the reason as text: an exact equality is left, or some inequalities hold with equality everywhere (as in the app).
+mn_volume_zero <- function(A) {
+  num <- q2d(A)
+  labs <- colnames(A)[-(1:2)]
+  eqs <- which(num[, 1] == 1)
+  if (length(eqs) > 0) {
+    txt <- vapply(eqs, function(r) {
+      cf <- num[r, -(1:2)]; nz <- which(abs(cf) > 1e-12)
+      lhs <- paste(vapply(nz, function(j) paste0(if (abs(cf[j] - 1) < 1e-12) "" else format(cf[j], digits = 4), labs[j]), character(1)), collapse = " + ")
+      paste0(lhs, " = ", format(-num[r, 2], digits = 4))
+    }, character(1))
+    return(paste0("it contains the exact equality ", paste(txt, collapse = "; "), " (other than p = p)"))
+  }
+  hh <- A; attr(hh, "representation") <- "H"
+  lin <- tryCatch(rcdd::linearity(hh), error = function(e) integer(0))
+  if (length(lin) > 0) return("some of its inequalities hold with equality everywhere, so it is flat in some direction")
+  NULL
+}
+
+mn_write_files <- function(models, n_p, dir, approx_tol, reduce, order, data, settings, analysis) {
+  if (is.null(names(models))) names(models) <- paste0("M", seq_along(models))
+  owd <- setwd(dir)
+  on.exit(setwd(owd))
+  files <- character()
+  info <- list()
+  vol_info <- list()
+
+  for (nm in names(models)) {
+    h <- export_h_of(models[[nm]], n_p, approx_tol, reduce)
+    h <- reorder_h_columns(h, order[[nm]])
+    safe_nm <- safe_file_name(nm)
+    lab_full <- colnames(h)[-(1:2)]
+    info[[nm]] <- list(labels = lab_full, stem = safe_nm)
+
+    h_orig <- h
+    # equalities p_i = p_j: one free parameter for the equal probabilities (map file), as in the app
+    red <- reduce_equal_probs(q2d(h))
+    map_mn <- NULL
+    if (!is.null(red)) {
+      coefs <- h[red$keep, -(1:2), drop = FALSE]
+      newc <- do.call(cbind, lapply(seq_along(red$groups), function(g) Reduce(qpq, lapply(which(red$map == g), function(j) coefs[, j]))))
+      grp_lab <- vapply(seq_along(red$groups), function(g) paste(lab_full[red$map == g], collapse = " = "), character(1))
+      h2 <- cbind(h[red$keep, 1:2, drop = FALSE], newc)
+      colnames(h2) <- c(colnames(h)[1:2], grp_lab)
+      h <- h2
+      map_mn <- red$map
+    }
+    # a model with other exact equalities (sums, fixed values) is analysed by the script itself: the equalities go to their own
+    # files C_ / d_ (all of them, the merged p_i = p_j ones too), the inequalities and the bounds 0 <= p <= 1 to A_ / b_
+    vol_why <- tryCatch(mn_volume_zero(h), error = function(e) NULL)
+    eq_C <- NULL; eq_d <- NULL; eq_path <- FALSE
+    if (!is.null(vol_why) && grepl("exact equality", vol_why, fixed = TRUE)) {
+      eq_path <- tryCatch({
+        num_o <- q2d(h_orig); is_eq_o <- num_o[, 1] == 1
+        Cm <- qneg_m(h_orig[is_eq_o, 3:ncol(h_orig), drop = FALSE]); dv <- h_orig[is_eq_o, 2]
+        colnames(Cm) <- lab_full
+        ineq_o <- h_orig[!is_eq_o, , drop = FALSE]
+        bnd_o <- mn_bound_rows(length(lab_full), colnames(h_orig))
+        h <- rbind(matrix(as.character(ineq_o), ncol = ncol(h_orig)), bnd_o)
+        colnames(h) <- colnames(h_orig)
+        eq_C <- Cm; eq_d <- dv
+        map_mn <- NULL
+        TRUE
+      }, error = function(e) FALSE)
+    }
+    vol_info[[safe_nm]] <- if (eq_path) "equality" else if (is.null(vol_why)) "" else vol_why
+
+    # an equality row means a.p = -b: add the sign-flipped copy so that both directions are inequalities
+    is_eq <- q2d(h)[, 1] == 1
+    if (any(is_eq)) {
+      flipped <- h[is_eq, , drop = FALSE]
+      flipped[, 2:ncol(flipped)] <- qneg_m(h[is_eq, 2:ncol(h), drop = FALSE])
+      h <- rbind(h, flipped)
+    }
+
+    # b is column 2; A is -(columns 3+), giving A %*% p <= b
+    b   <- h[, 2]
+    A   <- qneg_m(h[, 3:ncol(h), drop = FALSE])
+    colnames(A) <- colnames(h)[3:ncol(h)]
+
+    # names like p_{C,i} contain a comma: the header is quoted, otherwise the columns shift when the script reads the file
+    file_A <- paste0("A_", safe_nm, ".csv")
+    write.table(A, file_A, quote = TRUE, col.names = TRUE, row.names = FALSE, sep = ",")
+    files <- c(files, file_A)
+
+    if (!is.null(map_mn)) {
+      file_map <- paste0("map_", safe_nm, ".csv")
+      write.table(map_mn, file_map, quote = FALSE, col.names = FALSE, row.names = FALSE, sep = ",")
+      files <- c(files, file_map)
+    }
+
+    file_b <- paste0("b_", safe_nm, ".csv")
+    write.table(b, file_b, quote = FALSE, col.names = FALSE, row.names = FALSE, sep = ",")
+    files <- c(files, file_b)
+
+    if (!is.null(eq_C)) {
+      file_C <- paste0("C_", safe_nm, ".csv")
+      write.table(eq_C, file_C, quote = TRUE, col.names = TRUE, row.names = FALSE, sep = ",")
+      file_d <- paste0("d_", safe_nm, ".csv")
+      write.table(eq_d, file_d, quote = FALSE, col.names = FALSE, row.names = FALSE, sep = ",")
+      files <- c(files, file_C, file_d)
+    }
+  }
+
+  # which models have volume (the script does not have to guess), and in which order they are analysed
+  if (isTRUE(analysis)) {
+    utils::write.csv(data.frame(model = names(vol_info),
+                                volume = ifelse(unlist(vol_info) == "equality", "equality", ifelse(nzchar(unlist(vol_info)), "zero", "positive")),
+                                reason = unlist(vol_info), row.names = NULL), "model_info.csv", row.names = FALSE)
+    writeLines(vapply(info, function(i) i$stem, character(1)), "model_order.txt")
+    files <- c(files, "model_info.csv", "model_order.txt")
+  }
+
+  if (isTRUE(analysis)) {
+    files <- c(files, mn_write_data(info, data))
+    writeLines(do.call(fairy_multinomineq_script, settings), "analysis_multinomineq.R")
+    files <- c(files, "analysis_multinomineq.R")
+  }
+  files
+}

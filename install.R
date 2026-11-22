@@ -1,3 +1,4 @@
-# Run by Binder when the environment is built: installs the fairy and the packages it needs.
+# Run by Binder when the environment is built: installs the packages that the fairy needs, then the fairy itself (folder pkg).
 install.packages(c("remotes", "coda", "multinomineq", "volesti"))
-remotes::install_url("https://anonymous.4open.science/api/repo/fairy-B0F2/zip?file=fairy.zip", subdir = "pkg", dependencies = TRUE)
+remotes::install_local("pkg", dependencies = TRUE, upgrade = "never")
+stopifnot(requireNamespace("fairy", quietly = TRUE))     # stop the build if the fairy could not be installed
