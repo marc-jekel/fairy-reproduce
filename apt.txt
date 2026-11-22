@@ -1,0 +1,5 @@
+libgmp-dev
+libmpfr-dev
+libglpk-dev
+libcairo2-dev
+fonts-dejavu
