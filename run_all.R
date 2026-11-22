@@ -1,6 +1,6 @@
 # Reproduces every figure and table of the paper and of the online supplement that the fairy produces: one command, all scripts in turn.
 # Needs the R package fairy; see https://modeling-for-everyone.eu/posts/fairy/#reproduce
-# Run:  Rscript run_all.R          (all scripts; about one minute)
+# Run:  Rscript run_all.R          (all scripts; one to two minutes)
 #       Rscript run_all.R quick    (skips the slow data analysis of Tables E3 and E5)
 # Every script writes its PDFs next to itself; this script lists them at the end together with the run time of every script
 # and writes sessionInfo.txt (R, fairy and package versions) and Reproduction_report.pdf: one file with the console output of every script,

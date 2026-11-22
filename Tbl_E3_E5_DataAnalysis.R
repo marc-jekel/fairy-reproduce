@@ -3,7 +3,7 @@
 # Bayesian p-values (Bp) and Bayes factors (BF, against the unconstrained model) come from the R package multinomineq,
 # run through fairy_analyze_multinomineq(). Frequentist p-values (Fp) are computed by the software QTest and are not part of this script.
 # Needs the R packages fairy, multinomineq and coda; see https://modeling-for-everyone.eu/posts/fairy/#reproduce
-# Run:  Rscript Tbl_E3_E5_DataAnalysis.R   (writes Tbl_E3_E5_DataAnalysis.pdf; about half a minute)
+# Run:  Rscript Tbl_E3_E5_DataAnalysis.R   (writes Tbl_E3_E5_DataAnalysis.pdf; 30 to 80 seconds)
 source("_models.R"); source("_table_pdf.R")
 
 
