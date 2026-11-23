@@ -18,7 +18,7 @@ analyse <- function(dat) {
     for (seed in settings$seed + 0:4) {      # the posterior sampler sometimes cannot start: then try another seed
       r <- fairy_analyze_multinomineq(setNames(list(m[[nm]]), nm), data = dat, n_p = 6,
                                       settings = modifyList(settings, list(seed = seed)))$results
-      if (is.finite(r$ppp) || nm == "M6") break      # Model 6 has exact equalities: no Bayesian p-value (N/A in the paper)
+      if (is.finite(r$ppp)) break      # Model 6 has exact equalities: the sampler often cannot start, and for Marc's data it never does (shown as N/A)
     }
     data.frame(model = nm, Bp = r$ppp, BF = r$bf_0u)
   })
