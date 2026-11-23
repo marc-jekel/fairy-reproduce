@@ -32,6 +32,6 @@ t4 <- do.call(rbind, lapply(c("M4", "M9", "M10"), function(nm)
 print(t4)
 
 # ===== PART 2: layout only (formatting for the PDF); not needed for the result. =====
-pdf_tab <- data.frame(Model = t4$model, Version = t4$type, Dimension = t4$dim, Vertices = ifelse(is.na(t4$vertices), "not computed", format(t4$vertices, big.mark = ",")), Inequalities = t4$inequalities,
+pdf_tab <- data.frame(Model = t4$model, Version = t4$type, Dimension = t4$dim, Vertices = ifelse(is.na(t4$vertices), "not computed", format(t4$vertices, big.mark = ",")), Inequalities = format(t4$inequalities, big.mark = ","),
                       Equalities = t4$equalities, `Max Bayes factor` = ifelse(is.na(t4$max_bf), ifelse(t4$type == "identical", "none (volume 0)", "not computed"), format(signif(t4$max_bf, 3), scientific = TRUE)), check.names = FALSE)
 table_pdf(pdf_tab, "Tbl_4_Replication.pdf", "Table 4: replication models, r = 3 labs", row_names = FALSE, cex = 0.7)
