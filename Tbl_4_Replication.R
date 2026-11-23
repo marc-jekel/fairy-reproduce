@@ -21,7 +21,7 @@ rep_table <- function(h, r = 3, skip_vertices = FALSE) {
     subst <- data.frame(dim = ncol(sub_h) - 2 - sum(sub_h[, 1] == 1), vertices = NA_real_, inequalities = sum(sub_h[, 1] == 0),
                         equalities = sum(sub_h[, 1] == 1), volume = NA_real_, max_bf = NA_real_)
   } else subst <- fairy_info(sub_h, volume = FALSE)
-  if (!skip_vertices) subst$max_bf <- fairy_max_bf(sub_h, method = "volesti")     # an estimate (about 1.3e11 to 1.5e11 depending on the seed); the paper reports 1.37e11
+  if (!skip_vertices) subst$max_bf <- fairy_max_bf(sub_h, method = "volesti", settings = list(error = 1e-4))   # volesti estimate with a small error setting (default 0.1): about 1.36e11 to 1.38e11 depending on the seed, about 1 s; the paper reports 1.37e11
   ident$max_bf <- NA_real_                       # volume zero: no upper bound
   out <- rbind(identical = ident, joint = joint, substitutable = subst)
   out[, c("dim", "vertices", "inequalities", "equalities", "max_bf")]
