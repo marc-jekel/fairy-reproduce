@@ -15,10 +15,10 @@ settings <- list(bf_samples = 1e6, seed = 2026)     # more samples = more precis
 analyse <- function(dat) {
   # one call per model (the models are H-representations, Models 7 and 8 with approximate equalities, Model 10 the mixture)
   res <- lapply(names(m), function(nm) {
-    for (seed in settings$seed + 0:4) {      # the posterior sampler sometimes cannot start: then try another seed
+    for (seed in settings$seed + 0:19) {     # the posterior sampler sometimes breaks down (most often for Model 6, exact equalities): then try another seed
       r <- fairy_analyze_multinomineq(setNames(list(m[[nm]]), nm), data = dat, n_p = 6,
                                       settings = modifyList(settings, list(seed = seed)))$results
-      if (is.finite(r$ppp)) break      # Model 6 has exact equalities: the sampler often cannot start, and for Marc's data it never does (shown as N/A)
+      if (is.finite(r$ppp)) break      # Model 6: exact equalities are only approximated by multinomineq (thin slabs), and about every second seed fails
     }
     data.frame(model = nm, Bp = r$ppp, BF = r$bf_0u)
   })
