@@ -37,4 +37,4 @@ tab <- do.call(cbind, lapply(names(res), function(d) {
   out <- cbind(fmt_p(res[[d]]$Bp), fmt_bf(res[[d]]$BF)); colnames(out) <- paste(d, c("Bp", "BF")); out }))
 rownames(tab) <- sub("M", "Model ", names(m))
 table_pdf(tab, "Tbl_E3_E5_DataAnalysis.pdf", "Order-constrained inference for the hypothetical data (Bayesian p and Bayes factor)", cex = 0.6,
-          note = "Bp: Bayesian p-value; BF: Bayes factor against the unconstrained model. Frequentist p-values (Fp) come from QTest and are not shown.")
+          note = "Bp: Bayesian p-value; BF: Bayes factor against the unconstrained model. Frequentist p-values (Fp) come from QTest and are not shown.\nModel 6 has an exact equality, which multinomineq approximates (a thin slab around it): its values are estimates.")
