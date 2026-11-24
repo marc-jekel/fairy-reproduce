@@ -39,6 +39,12 @@ The package does what "the mathematics fairy" does in the paper (it does not sto
 | replication models (identical, joint, substitutable) | `fairy_replicate()` |
 | input files for QTEST and multinomineq | `fairy_write_qtest()`, `fairy_write_multinomineq()` |
 
+This vignette shows the numbers from which the paper's figures and tables are made, not the figures and tables themselves:
+the layout code (colours, symbols, PDF tables) is not needed for the results. To see how few commands reproduce every
+figure and table, including their PDFs, use the scripts on <https://modeling-for-everyone.eu/posts/fairy/#reproduce>
+(`Rscript run_all.R` runs all of them; some very large models are "not computed" by default and can be switched on at
+the top of the script: `list_all_vertices_model_10` in `Tbl_4_Replication.R`, `compute_direct` in `Tbl_E6_Replication.R`).
+
 # Part 1: The cringyness study
 
 ## Verbal hypotheses become order constraints
@@ -311,8 +317,40 @@ which already equals the paper's number of non-redundant inequalities:
 nrow(fairy_replicate(m$M10, 3, "substitutable", reduce = FALSE))
 ```
 
-To get the full row, including the 46,739 vertices, call
-`fairy_info(fairy_replicate(m$M10, 3, "substitutable"), volume = FALSE)`; this takes a long time.
+The remaining cells of this row, the 46,739 vertices and the upper bound on the Bayes factor, take very long (many hours)
+in 18 dimensions: `fairy_info(fairy_replicate(m$M10, 3, "substitutable"), volume = FALSE)`. The script `Tbl_4_Replication.R`
+reads "not computed" for them unless its switch `list_all_vertices_model_10` is set to `TRUE`.
+
+## Replication analysis (Table E6, Online Supplement E)
+
+Table E6 fits the replication models to the three hypothetical data sets (three labs, 18 probabilities). The fairy hands the
+model to multinomineq (`fairy_analyze_multinomineq()`), which returns the Bayesian p-value (`ppp`) and the Bayes factor against the
+unconstrained model (`bf_0u`). Here for Model 10 (the mixture of Models 4 and 9); the other models work the same way.
+
+```{r tableE6-data}
+labs <- list(c(60, 64, 68, 60, 50, 38), c(150, 160, 170, 150, 125, 95), c(44, 40, 36, 50, 60, 70))
+n    <- c(100, 250, 100)                       # observations per cell in the three labs
+dat  <- data.frame(probability = paste0("p", 1:18), n = rep(n, each = 6), frequency = unlist(labs))
+```
+
+```{r tableE6-fit, eval = requireNamespace("multinomineq", quietly = TRUE) && requireNamespace("coda", quietly = TRUE)}
+settings <- list(bf_samples = 1e6, seed = 2026)
+# identical replication model: six probabilities shared by all labs
+id <- fairy_analyze_multinomineq(list(model = fairy_replicate(m$M10, 3, "identical")), data = dat, n_p = 18, settings = settings)$results
+c(Bp = id$ppp, BF = id$bf_0u)
+
+# joint replication model: the labs are independent, so its Bayes factor is the product of the three single-lab Bayes factors
+lab_bf <- sapply(1:3, function(k) {
+  d <- dat[(6 * k - 5):(6 * k), ]; d$probability <- paste0("p", 1:6)
+  fairy_analyze_multinomineq(list(model = m$M10), data = d, n_p = 6, settings = settings)$results$bf_0u
+})
+prod(lab_bf)
+```
+
+The Bayesian p-value of the joint model and both values of the substitutable model need the 18-dimensional posterior. This is
+fast for Model 4 but takes many hours for the largest models, so the script `Tbl_E6_Replication.R` reads "not computed" for these
+cells unless `compute_direct` is set to `TRUE`. (Model 6 of Tables E3 and E5 has an exact equality, which multinomineq
+approximates by a thin slab around it, so its values are estimates.)
 
 # Part 2: The Heuristic-Systematic Model (online supplement)
 
