@@ -2,6 +2,9 @@
 # Needs the R package fairy; see https://modeling-for-everyone.eu/posts/fairy/#reproduce
 # Run:  Rscript run_all.R          (all scripts; one to two minutes)
 #       Rscript run_all.R quick    (skips the slow data analysis of Tables E3 and E5)
+# Some very large models are "not computed" by default. To compute them too (many hours), set the switch at the top of the script to TRUE:
+#       list_all_vertices_model_10 <- TRUE   in Tbl_4_Replication.R   (Model 10, substitutable version, Table 4)
+#       compute_direct <- TRUE               in Tbl_E6_Replication.R (joint and substitutable replication models, Table E6)
 # Every script writes its PDFs next to itself; this script lists them at the end together with the run time of every script
 # and writes sessionInfo.txt (R, fairy and package versions) and Reproduction_report.pdf: one file with the console output of every script,
 # its figures and tables, and the versions (needs the R package qpdf; without it the report is skipped).
