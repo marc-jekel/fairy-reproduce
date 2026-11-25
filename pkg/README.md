@@ -60,7 +60,8 @@ A verbal hypothesis about proportions, "category A is more common than B, which 
 | `fairy_compare()` | comparison table of a set of models |
 | `fairy_compare_vertices()` | which extreme cases do models share, which are unique to a model |
 | `fairy_replicate()` | replication across labs: identical, joint, substitutable |
-| `fairy_unpack()` | unpacking across items: lists, joint / substitutable / identical (with tolerance) / average |
+| `fairy_replicate_labs()` | replication across labs that do not all have every probability: joint, substitutable, identical (with tolerance), average |
+| `fairy_replicate_items()` | replication across items, each probability with its own number: substitutable, identical (with tolerance), average |
 | `fairy_write_qtest()`, `fairy_write_multinomineq()` | write input files for QTEST and multinomineq (the latter with your data, the settings and the analysis script) |
 | `fairy_multinomineq_script()`, `fairy_analyze_multinomineq()` | the analysis script of the multinomineq archive; run the analysis from R: Bayes factors and posterior estimates |
 

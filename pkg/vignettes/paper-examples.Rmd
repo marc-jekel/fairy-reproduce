@@ -36,7 +36,7 @@ The package does what "the mathematics fairy" does in the paper (it does not sto
 | minimal description via extreme cases (V-representation) | `fairy_vertices()`, `fairy_words()` |
 | parsimony (volume) and the largest possible Bayes factor | `fairy_volume()`, `fairy_max_bf()`, `fairy_info()` |
 | overlap, nesting, mixture models | `fairy_intersect()`, `fairy_nested()`, `fairy_mixture()`, `fairy_compare()` |
-| replication models (identical, joint, substitutable) | `fairy_replicate()` |
+| replication models (identical, joint, substitutable) | `fairy_replicate()` (with differing labs or items: `fairy_replicate_labs()`, `fairy_replicate_items()`) |
 | input files for QTEST and multinomineq | `fairy_write_qtest()`, `fairy_write_multinomineq()` |
 
 This vignette shows the numbers from which the paper's figures and tables are made, not the figures and tables themselves:

@@ -18,7 +18,8 @@ fairy_analyze_multinomineq(
 \arguments{
 \item{models}{A (named) character vector or list. Each element is a model
 string, as accepted by \code{\link[=fairy]{fairy()}}, or an H-representation (for example from
-\code{\link[=fairy_intersect]{fairy_intersect()}}, \code{\link[=fairy_mixture]{fairy_mixture()}} or \code{\link[=fairy_unpack]{fairy_unpack()}}).}
+\code{\link[=fairy_intersect]{fairy_intersect()}}, \code{\link[=fairy_mixture]{fairy_mixture()}}, \code{\link[=fairy_replicate_labs]{fairy_replicate_labs()}} or
+\code{\link[=fairy_replicate_items]{fairy_replicate_items()}}).}
 
 \item{data}{Your data for the analysis: \code{NULL} (example numbers that you overwrite), one data frame with the columns
 \code{probability}, \code{n} (number of observations) and \code{frequency} (how often the outcome was observed, out of \code{n}) with one row

@@ -154,7 +154,8 @@ safe_file_name <- function(x) {
 #'
 #' @param models A (named) character vector or list. Each element is a model
 #'   string, as accepted by [fairy()], or an H-representation (for example from
-#'   [fairy_intersect()], [fairy_mixture()] or [fairy_unpack()]).
+#'   [fairy_intersect()], [fairy_mixture()], [fairy_replicate_labs()] or
+#'   [fairy_replicate_items()]).
 #' @param n_p Integer. Number of probabilities; only needed for model strings.
 #' @param file Path for the output `.tar` file. Defaults to
 #'   `"QTEST_H-representation_YYYY-MM-DD.tar"` in the current directory.

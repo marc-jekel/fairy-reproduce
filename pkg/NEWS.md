@@ -1,3 +1,13 @@
+# fairy 0.7.0
+
+* Replication works as in the app, without item lists. New: `fairy_replicate_items()` (every probability has its own number of
+  items; `"substitutable"`, `"identical"` or `"average"`), and `fairy_replicate_labs()` is now exported (labs that do not have
+  every probability; `"joint"`, `"substitutable"`, `"identical"` or `"average"`). Both have `all_cells` to keep a free parameter
+  for every lab (item) and probability, as the app does.
+* Removed: `fairy_unpack()` and its item lists.
+* `fairy_replicate_labs(type = "identical")` with exact equality now keeps one parameter per lab and probability, with equalities
+  between them (volume zero), like `fairy_replicate()`.
+
 # fairy 0.6.6
 
 * `fairy_unpack()`: with type `"joint"`, a constraint that uses probabilities of several lists is now paired item by item (item `k` of one

@@ -69,8 +69,9 @@ project_h <- function(h, keep) {
 #'   The volume is the product of the volumes of the labs.
 #' * `"substitutable"`: the order of the model holds whichever lab's
 #'   probability is plugged in for each term (only where the lab has it).
-#' * `"identical"`: a probability is the same in all labs that have it: one
-#'   parameter per probability that at least one lab has.
+#' * `"identical"`: a probability is the same in all labs that have it (equalities
+#'   between its copies, so the volume is zero when two labs share a probability),
+#'   or, with `approx_tol > 0`, differs between them by at most that much.
 #' * `"average"`: the model holds for the averages over the labs that have a
 #'   probability; the model has one parameter per lab and probability.
 #'
@@ -83,20 +84,27 @@ project_h <- function(h, keep) {
 #' @param n_p Number of probabilities for a model string.
 #' @param reduce Remove redundant constraints? Default `TRUE`.
 #' @param approx_tol For `"identical"`: the labs may differ by up to this much (0 = exactly equal). The model holds in every lab, and any two labs differ by at most this much.
+#' @param all_cells Keep a parameter for every combination of lab and
+#'   probability, also where a lab does not have the probability? Such a
+#'   parameter is free (only between 0 and 1), which changes neither the volume
+#'   nor the largest possible Bayes factor. The app does this, so that all
+#'   replication models of the same size live in the same space. Default `FALSE`.
 #'
-#' @return An H-representation. The parameters of `"joint"`,
-#'   `"substitutable"` and `"average"` are ordered lab by lab (only the
-#'   probabilities a lab has); those of `"identical"` are the probabilities
-#'   that at least one lab has.
+#' @return An H-representation. The parameters are ordered lab by lab (only the
+#'   probabilities a lab has, unless `all_cells = TRUE`) and are named
+#'   `p^(lab)`.
 #'
 #' @examples
 #' m <- fairy_h("p1 > p2 > p3", n_p = 3)
 #' present <- rbind(c(TRUE, TRUE, TRUE), c(TRUE, FALSE, TRUE))   # lab 2 has no p2
 #' fairy_info(fairy_replicate_labs(m, present, "joint"))
+#' @seealso [fairy_replicate()] when every lab has every probability,
+#'   [fairy_replicate_items()] for replication across items.
 #' @importFrom rcdd d2q q2d redundant scdd makeV
 #' @export
 fairy_replicate_labs <- function(h, present, type = c("joint", "substitutable", "identical", "average"),
-                                 labs = NULL, n_p = NULL, reduce = TRUE, approx_tol = 0) {
+                                 labs = NULL, n_p = NULL, reduce = TRUE, approx_tol = 0,
+                                 all_cells = FALSE) {
   type <- match.arg(type)
   h <- resolve_h(h, n_p = n_p)
   n <- ncol(h) - 2L
@@ -123,11 +131,25 @@ fairy_replicate_labs <- function(h, present, type = c("joint", "substitutable", 
     m <- unique(do.call(rbind, rows))
     hh <- d2q(m); colnames(hh) <- c("", "", names_)
     if (reduce && nrow(hh) > 1L) { rr <- redundant(hh)$output; colnames(rr) <- c("", "", names_); hh <- rr }
+    if (all_cells && nn < r * n) hh <- all_lab_cells(hh, present, base_names, labs)
     hh
   }
 
+  if (type == "identical" && approx_tol <= 0) {
+    # exactly identical: the model for the first copy of every probability, and every other copy equal to it
+    first <- vapply(used, function(i) which(present[, i])[1L], integer(1))
+    hn <- q2d(project_h(h, used))
+    for (k in seq_len(nrow(hn))) {
+      a <- numeric(nn); a[idx[cbind(first, used)]] <- hn[k, -(1:2)]; add(hn[k, 1], hn[k, 2], a)
+    }
+    for (jj in seq_along(used)) for (l in setdiff(which(present[, used[jj]]), first[jj])) {
+      a <- numeric(nn); a[idx[first[jj], used[jj]]] <- 1; a[idx[l, used[jj]]] <- -1; add(1, 0, a)
+    }
+    reduce <- FALSE    # the rows are already minimal up to the trivial bounds of the copies
+    return(finish(rows, cell_names))
+  }
+
   if (type == "identical") {
-    if (approx_tol <= 0) return(project_h(h, used))
     # approximately identical: the model holds in every lab (no lab is the reference); any two labs differ by at most approx_tol
     for (l in seq_len(r)) {
       S <- which(present[l, ]); hn <- q2d(project_h(h, S))
@@ -149,7 +171,7 @@ fairy_replicate_labs <- function(h, present, type = c("joint", "substitutable", 
       for (i in seq_len(nrow(hn))) { a <- numeric(nn); a[idx[l, S]] <- hn[i, -(1:2)]; add(hn[i, 1], hn[i, 2], a) }
     }
     hh <- finish(rows, cell_names)
-    attr(hh, "fairy_joint") <- list(hs = proj)
+    if (!(all_cells && nn < r * n)) attr(hh, "fairy_joint") <- list(hs = proj)
     return(hh)
   }
 
@@ -184,4 +206,70 @@ fairy_replicate_labs <- function(h, present, type = c("joint", "substitutable", 
   }
   for (c_ in seq_len(nn)) { a <- numeric(nn); a[c_] <- 1; add(0, 0, a); a[c_] <- -1; add(0, 1, a) }
   finish(rows, cell_names)
+}
+
+# add a free parameter (0 <= p <= 1) for every lab x probability that does not exist; columns lab by lab
+all_lab_cells <- function(h, present, base_names, labs) {
+  r <- nrow(present); n <- ncol(present)
+  full <- as.vector(vapply(seq_len(r), function(l) paste0(base_names, "^(", labs[l], ")"), character(n)))
+  have <- as.vector(t(present))
+  out <- matrix("0", nrow(h), 2L + r * n)
+  out[, 1:2] <- h[, 1:2]
+  out[, 2L + which(have)] <- h[, -(1:2)]
+  free <- which(!have)
+  bounds <- matrix("0", 2L * length(free), 2L + r * n)
+  for (k in seq_along(free)) {
+    bounds[2L * k - 1L, c(2L, 2L + free[k])] <- c("1", "-1")      # p <= 1
+    bounds[2L * k, 2L + free[k]] <- "1"                           # p >= 0
+  }
+  out <- rbind(out, bounds)
+  attr(out, "representation") <- "H"
+  colnames(out) <- c("", "", full)
+  out
+}
+
+#' Replicate a model across items
+#'
+#' Several items (trials, stimuli, conditions, repetitions) per probability,
+#' where every probability can have its own number of items. Item `k` of one
+#' probability goes with item `k` of the others; a probability with fewer items
+#' is missing in the later ones, where the model is projected onto the rest.
+#' This is [fairy_replicate_labs()] with the items in the place of the labs.
+#' There is no `"joint"` type, because items are not independent of each other.
+#'
+#' * `"substitutable"`: the order of the model holds whichever item is plugged
+#'   in for each term.
+#' * `"identical"`: a probability has the same value in all its items (or
+#'   differs between them by at most `approx_tol`).
+#' * `"average"`: the model holds for each probability's average over its items.
+#'
+#' That item `k` of one probability means the same thing as item `k` of another
+#' is something you decide.
+#'
+#' @inheritParams fairy_replicate_labs
+#' @param items Number of items: one number for all probabilities, or one per
+#'   probability.
+#' @param type `"substitutable"`, `"identical"` or `"average"`.
+#' @param all_cells Keep a (free) parameter for every item and probability, also
+#'   where a probability does not have that item? Default `FALSE`.
+#'
+#' @return An H-representation. The parameters are ordered item by item and are
+#'   named `p^(item)`.
+#'
+#' @examples
+#' # p1 and p2 have two items, p3 has three
+#' h <- fairy_replicate_items("p1 > p2 > p3", items = c(2, 2, 3), n_p = 3)
+#' colnames(h)[-(1:2)]
+#' fairy_info(h)
+#' @export
+fairy_replicate_items <- function(h, items, type = c("substitutable", "identical", "average"),
+                                  n_p = NULL, reduce = TRUE, approx_tol = 0, all_cells = FALSE) {
+  type <- match.arg(type)
+  h <- resolve_h(h, n_p = n_p)
+  n <- ncol(h) - 2L
+  if (length(items) == 1L) items <- rep(items, n)
+  if (length(items) != n) stop("`items` needs one number, or one per probability (", n, ").")
+  if (anyNA(items) || any(items < 1 | items != round(items))) stop("`items` must be positive whole numbers.")
+  present <- outer(seq_len(max(items)), as.integer(items), "<=")
+  fairy_replicate_labs(h, present, type, reduce = reduce, approx_tol = approx_tol, all_cells = all_cells)
 }
