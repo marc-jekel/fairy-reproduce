@@ -1,6 +1,6 @@
-# Reproduces Table 4 of the paper: replication models (identical, joint, substitutable) for r = 3 labs.
+# Reproduces Table 2 of the paper: replication models (identical, joint, substitutable) for r = 3 labs.
 # Needs the R package fairy; see https://modeling-for-everyone.eu/posts/fairy/#reproduce
-# Run:  Rscript Tbl_4_Replication.R   (writes Tbl_4_Replication.pdf)
+# Run:  Rscript Tbl_2_Replication.R   (writes Tbl_2_Replication.pdf)
 # Note: the constraints of the replication models are written out directly (reduce = FALSE); no redundant constraints arise in these models.
 source("_models.R"); source("_table_pdf.R")
 
@@ -35,4 +35,4 @@ print(t4)
 # ===== PART 2: layout only (formatting for the PDF); not needed for the result. =====
 pdf_tab <- data.frame(Model = t4$model, Version = t4$type, Dimension = t4$dim, Vertices = ifelse(is.na(t4$vertices), "not computed", format(t4$vertices, big.mark = ",")), Inequalities = format(t4$inequalities, big.mark = ","),
                       Equalities = t4$equalities, `Max Bayes factor` = ifelse(is.na(t4$max_bf), ifelse(t4$type == "identical", "none (volume 0)", "not computed"), format(signif(t4$max_bf, 3), scientific = TRUE)), check.names = FALSE)
-table_pdf(pdf_tab, "Tbl_4_Replication.pdf", "Table 4: replication models, r = 3 labs", row_names = FALSE, cex = 0.7)
+table_pdf(pdf_tab, "Tbl_2_Replication.pdf", "Table 2: replication models, r = 3 labs", row_names = FALSE, cex = 0.7)

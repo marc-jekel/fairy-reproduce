@@ -107,7 +107,7 @@ fairy_mixture(m$M4, m$M9)               # mixture model: 12 vertices, 64 constra
 fairy_intersect("p1 > p2", "p2 > p3", n_p = 3)
 fairy_nested(m$M4, m$M3)                # TRUE
 
-# Replication across three labs (Table 4)
+# Replication across three labs (Table 2)
 fairy_info(fairy_replicate(m$M4, 3, "joint"))
 ```
 

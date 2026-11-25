@@ -3,12 +3,12 @@
 # Run:  Rscript run_all.R          (all scripts; one to two minutes)
 #       Rscript run_all.R quick    (skips the slow data analysis of Tables E3 and E5)
 # Some very large models are "not computed" by default. To compute them too (many hours), set the switch at the top of the script to TRUE:
-#       list_all_vertices_model_10 <- TRUE   in Tbl_4_Replication.R   (Model 10, substitutable version, Table 4)
+#       list_all_vertices_model_10 <- TRUE   in Tbl_2_Replication.R   (Model 10, substitutable version, Table 2)
 #       compute_direct <- TRUE               in Tbl_E6_Replication.R (joint and substitutable replication models, Table E6)
 # Every script writes its PDFs next to itself; this script lists them at the end together with the run time of every script
 # and writes sessionInfo.txt (R, fairy and package versions) and Reproduction_report.pdf: one file with the console output of every script,
 # its figures and tables, and the versions (needs the R package qpdf; without it the report is skipped).
-scripts <- c("Figure_2_Hrep_Model4.R", "Figure_3_4_Vrep.R", "Figure_5_Polytopes.R", "Tbl_3_Relationships.R", "Tbl_4_Replication.R",
+scripts <- c("Figure_2_Hrep_Model4.R", "Figure_3_4_Vrep.R", "Figure_5_Polytopes.R", "Tbl_1_Relationships.R", "Tbl_2_Replication.R",
              "Figure_D01-D20_Hrep_Vrep_Models.R", "Tbl_E2_E4_Data.R", "Tbl_E3_E5_DataAnalysis.R", "Tbl_E6_Replication.R", "Tbl_F1-F4_HSM.R")
 if ("quick" %in% commandArgs(TRUE)) scripts <- setdiff(scripts, "Tbl_E3_E5_DataAnalysis.R")
 rscript <- file.path(R.home("bin"), "Rscript")
@@ -46,8 +46,8 @@ if (!requireNamespace("qpdf", quietly = TRUE)) {
       text(0.05, 0.06 + (seq_along(pages[[k]]) - 1) * 0.0165, pages[[k]], adj = c(0, 0.5), cex = 0.62)
     }
   }
-  groups <- list(c("Figure_2_Hrep_Model4.R", "^Figure_2_"), c("Figure_3_4_Vrep.R", "^(Figure_[34]_|Tbl_[12]_)"), c("Figure_5_Polytopes.R", "^Figure_5_"),
-                 c("Tbl_3_Relationships.R", "^Tbl_3_"), c("Tbl_4_Replication.R", "^Tbl_4_"), c("Figure_D01-D20_Hrep_Vrep_Models.R", "^Figure_D"),
+  groups <- list(c("Figure_2_Hrep_Model4.R", "^Figure_2_"), c("Figure_3_4_Vrep.R", "^Figure_[34]_"), c("Figure_5_Polytopes.R", "^Figure_5_"),
+                 c("Tbl_1_Relationships.R", "^Tbl_1_"), c("Tbl_2_Replication.R", "^Tbl_2_"), c("Figure_D01-D20_Hrep_Vrep_Models.R", "^Figure_D"),
                  c("Tbl_E2_E4_Data.R", "^Tbl_E[24]_"), c("Tbl_E3_E5_DataAnalysis.R", "^Tbl_E3_E5"), c("Tbl_E6_Replication.R", "^Tbl_E6_"), c("Tbl_F1-F4_HSM.R", "^Tbl_F"))
   parts <- character(); tmp <- tempfile(); dir.create(tmp)
   toc <- c(paste("Reproduction report,", format(Sys.time(), "%Y-%m-%d %H:%M")), "", "Contents (script: result files)", "")

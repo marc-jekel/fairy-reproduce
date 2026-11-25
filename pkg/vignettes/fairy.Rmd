@@ -288,7 +288,7 @@ error: for the final numbers use more samples (`bf_samples`) and report the seed
 | `fairy_intersect()` | intersection of models |
 | `fairy_mixture()` | mixture model (convex hull of the components) |
 | `fairy_nested()` | is one model nested in another? |
-| `fairy_compare()` | comparison table of a set of models (Table 3 of the paper) |
+| `fairy_compare()` | comparison table of a set of models (Table 1 of the paper) |
 | `fairy_replicate()` | replication across labs: identical, joint, substitutable |
 | `fairy_replicate_labs()` | replication across labs that do not all have every probability: joint, substitutable, identical (with tolerance), average |
 | `fairy_replicate_items()` | replication across items, each probability with its own number: substitutable, identical (with tolerance), average |
