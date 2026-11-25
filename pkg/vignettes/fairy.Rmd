@@ -290,7 +290,8 @@ error: for the final numbers use more samples (`bf_samples`) and report the seed
 | `fairy_nested()` | is one model nested in another? |
 | `fairy_compare()` | comparison table of a set of models (Table 3 of the paper) |
 | `fairy_replicate()` | replication across labs: identical, joint, substitutable |
-| `fairy_unpack()` | unpacking across items: lists, joint / substitutable / identical (with tolerance) / average |
+| `fairy_replicate_labs()` | replication across labs that do not all have every probability: joint, substitutable, identical (with tolerance), average |
+| `fairy_replicate_items()` | replication across items, each probability with its own number: substitutable, identical (with tolerance), average |
 | `fairy_compare_vertices()` | which extreme cases do models share, which are unique to a model |
 | `fairy_write_qtest()` | write input files for QTEST |
 | `fairy_write_multinomineq()` | write input files for multinomineq: models, data, settings and the analysis script |
