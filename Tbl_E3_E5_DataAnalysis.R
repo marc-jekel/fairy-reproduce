@@ -3,7 +3,7 @@
 # Bayesian p-values (Bp) and Bayes factors (BF, against the unconstrained model) come from the R package multinomineq,
 # run through fairy_analyze_multinomineq(). Frequentist p-values (Fp) are computed by the software QTest and are not part of this script.
 # Needs the R packages fairy, multinomineq and coda; see https://modeling-for-everyone.eu/posts/fairy/#reproduce
-# Run:  Rscript Tbl_E3_E5_DataAnalysis.R   (writes Tbl_E3_E5_DataAnalysis.pdf; 30 to 80 seconds)
+# Run:  Rscript Tbl_E3_E5_DataAnalysis.R   (writes Tbl_E3_DataAnalysis.pdf and Tbl_E5_DataAnalysis.pdf; 30 to 80 seconds)
 source("_models.R"); source("_table_pdf.R")
 
 
@@ -36,5 +36,7 @@ fmt_bf <- function(x) ifelse(x < 1 / settings$bf_samples, paste0("<", formatC(1 
 tab <- do.call(cbind, lapply(names(res), function(d) {
   out <- cbind(fmt_p(res[[d]]$Bp), fmt_bf(res[[d]]$BF)); colnames(out) <- paste(d, c("Bp", "BF")); out }))
 rownames(tab) <- sub("M", "Model ", names(m))
-table_pdf(tab, "Tbl_E3_E5_DataAnalysis.pdf", "Order-constrained inference for the hypothetical data (Bayesian p and Bayes factor)", cex = 0.6,
-          note = "Bp: Bayesian p-value; BF: Bayes factor against the unconstrained model. Frequentist p-values (Fp) come from QTest and are not shown.\nModel 6 has an exact equality, which multinomineq approximates (a thin slab around it): its values are estimates.")
+note <- "Bp: Bayesian p-value; BF: Bayes factor against the unconstrained model. Frequentist p-values (Fp) come from QTest and are not shown.\nModel 6 has an exact equality, which multinomineq approximates (a thin slab around it): its values are estimates."
+e5 <- grepl("^Meichai", colnames(tab))                  # Table E3: Mike's data and Marc's replication; Table E5: Meichai's data
+table_pdf(tab[, !e5], "Tbl_E3_DataAnalysis.pdf", "Table E3: Mike's data and Marc's replication (Bayesian p and Bayes factor)", cex = 0.6, note = note)
+table_pdf(tab[, e5], "Tbl_E5_DataAnalysis.pdf", "Table E5: Meichai's data (Bayesian p and Bayes factor)", cex = 0.6, note = note)
