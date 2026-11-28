@@ -5,7 +5,7 @@
 source("_models.R"); source("_table_pdf.R")
 
 list_all_vertices_model_10 <- FALSE   # Model 10 (the mixture of Models 4 and 9) is always in the table. Its substitutable version (18 dimensions,
-                                      # 4,032 constraints; the paper reports 46,739 extreme cases) is too large for a quick run: listing the extreme cases
+                                      # 4,032 constraints; the paper reports 46,740 extreme cases) is too large for a quick run: listing the extreme cases
                                       # takes many hours and the Bayes-factor bound is a long random walk, so these two cells read "not computed".
                                       # TRUE computes them too (expect more than a day of computing time).
 

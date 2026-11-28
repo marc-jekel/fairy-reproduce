@@ -306,7 +306,7 @@ which already equals the paper's number of non-redundant inequalities:
 nrow(fairy_replicate(m$M10, 3, "substitutable", reduce = FALSE))
 ```
 
-The remaining cells of this row, the 46,739 vertices and the upper bound on the Bayes factor, take very long (many hours)
+The remaining cells of this row, the 46,740 vertices and the upper bound on the Bayes factor, take very long (many hours)
 in 18 dimensions: `fairy_info(fairy_replicate(m$M10, 3, "substitutable"), volume = FALSE)`. The script `Tbl_2_Replication.R`
 reads "not computed" for them unless its switch `list_all_vertices_model_10` is set to `TRUE`.
 
