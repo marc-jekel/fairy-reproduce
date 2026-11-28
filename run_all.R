@@ -9,7 +9,7 @@
 # and writes sessionInfo.txt (R, fairy and package versions) and Reproduction_report.pdf: one file with the console output of every script,
 # its figures and tables, and the versions (needs the R package qpdf; without it the report is skipped).
 scripts <- c("Figure_2_Hrep_Model4.R", "Figure_3_4_Vrep.R", "Figure_5_Polytopes.R", "Tbl_1_Relationships.R", "Tbl_2_Replication.R",
-             "Figure_D01-D20_Hrep_Vrep_Models.R", "Tbl_E2_E4_Data.R", "Tbl_E3_E5_DataAnalysis.R", "Tbl_E6_Replication.R", "Tbl_F1-F4_HSM.R")
+             "Figure_D01-D20_Hrep_Vrep_Models.R", "Tbl_E2_E4_Data.R", "Tbl_E3_E5_DataAnalysis.R", "Tbl_E6_Replication.R", "Tbl_F1_HSM.R", "Tbl_F2_HSM.R", "Tbl_F3_HSM.R", "Tbl_F4_HSM.R")
 if ("quick" %in% commandArgs(TRUE)) scripts <- setdiff(scripts, "Tbl_E3_E5_DataAnalysis.R")
 rscript <- file.path(R.home("bin"), "Rscript")
 before  <- list.files(pattern = "\\.pdf$")
@@ -48,7 +48,7 @@ if (!requireNamespace("qpdf", quietly = TRUE)) {
   }
   groups <- list(c("Figure_2_Hrep_Model4.R", "^Figure_2_"), c("Figure_3_4_Vrep.R", "^Figure_[34]_"), c("Figure_5_Polytopes.R", "^Figure_5_"),
                  c("Tbl_1_Relationships.R", "^Tbl_1_"), c("Tbl_2_Replication.R", "^Tbl_2_"), c("Figure_D01-D20_Hrep_Vrep_Models.R", "^Figure_D"),
-                 c("Tbl_E2_E4_Data.R", "^Tbl_E[24]_"), c("Tbl_E3_E5_DataAnalysis.R", "^Tbl_E3_E5"), c("Tbl_E6_Replication.R", "^Tbl_E6_"), c("Tbl_F1-F4_HSM.R", "^Tbl_F"))
+                 c("Tbl_E2_E4_Data.R", "^Tbl_E[24]_"), c("Tbl_E3_E5_DataAnalysis.R", "^Tbl_E3_E5"), c("Tbl_E6_Replication.R", "^Tbl_E6_"), c("Tbl_F1_HSM.R", "^Tbl_F1_"), c("Tbl_F2_HSM.R", "^Tbl_F2_"), c("Tbl_F3_HSM.R", "^Tbl_F3_"), c("Tbl_F4_HSM.R", "^Tbl_F4_"))
   parts <- character(); tmp <- tempfile(); dir.create(tmp)
   toc <- c(paste("Reproduction report,", format(Sys.time(), "%Y-%m-%d %H:%M")), "", "Contents (script: result files)", "")
   for (g in groups) if (g[1] %in% scripts) toc <- c(toc, paste0(g[1], ": ", paste(sort(list.files(pattern = paste0(g[2], ".*\\.pdf$"))), collapse = ", ")))
