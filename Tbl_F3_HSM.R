@@ -21,6 +21,12 @@ models <- list("Prediction 3 (both)" = pred3,
 info <- do.call(rbind, lapply(models, function(h) fairy_info(h, method = "exact")))   # dimension, vertices, constraints, volume, largest Bayes factor
 print(info)
 
+# the constraints (H-representation), with the probabilities named as in the supplement: gap b(ig), m(edium), s(mall); argument W(eak), M(edium), S(trong)
+cat("\nPrediction 3: constraints\n")
+print(fairy_h_table(pred3, style = "text", labels = c("bW", "bS", "sW", "sS")))
+cat("\n3 x 3 design: constraints\n")
+print(fairy_h_table(pred_3x3, style = "text", labels = c("bW", "bM", "bS", "mW", "mM", "mS", "sW", "sM", "sS")))
+
 vwords <- function(h) as.matrix(fairy_words(h))                     # extreme cases in words: none = nobody acts, all = everybody acts
 cat("\npred3: extreme cases in words\n"); print(vwords(pred3))
 

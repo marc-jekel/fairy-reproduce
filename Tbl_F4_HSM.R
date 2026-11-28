@@ -16,6 +16,12 @@ models <- list("Override" = override, "Trade-off" = tradeoff, "Take-the-best" = 
 info <- do.call(rbind, lapply(models, function(h) fairy_info(h, method = "exact")))   # dimension, vertices, constraints, volume, largest Bayes factor
 print(info)
 
+# the constraints (H-representation), with the probabilities named as in the supplement: cues i(ncongruent), n(one), c(ongruent); argument W(eak), S(trong)
+for (nm in c("Override", "Trade-off", "Take-the-best", "Mixture of Override and Take-the-best")) {
+  cat("\n", nm, ": constraints\n", sep = "")
+  print(fairy_h_table(models[[nm]], style = "text", labels = c("iW", "nW", "cW", "iS", "nS", "cS")))
+}
+
 vwords <- function(h) as.matrix(fairy_words(h))                     # extreme cases in words: none = nobody acts, all = everybody acts
 for (nm in c("override", "ttb")) { cat("\n", nm, ": extreme cases in words\n", sep = ""); print(vwords(get(nm))) }
 
